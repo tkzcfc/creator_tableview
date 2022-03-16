@@ -11,21 +11,6 @@ import TableViewItem from "./TableViewItem";
 const {ccclass, property, disallowMultiple, requireComponent} = cc._decorator;
 
 
-class Margin {
-    top : number;
-    bottom : number;
-    left : number;
-    right : number;
-
-    constructor(t: number, b: number, l: number, r: number) {
-        this.top = t;
-        this.bottom = b;
-        this.left = l;
-        this.right = r;
-    }
-}
-
-
 /**
  * 垂直方向布局方式
  */
@@ -56,6 +41,23 @@ enum ShowMode {
     // 居中显示，当实际内容大小小于ScrollView节点大小时，自动增加四周留白距离将内容居中展示
     ShowCenter,
 }
+
+
+
+class Margin {
+    top : number;
+    bottom : number;
+    left : number;
+    right : number;
+
+    constructor(t: number, b: number, l: number, r: number) {
+        this.top = t;
+        this.bottom = b;
+        this.left = l;
+        this.right = r;
+    }
+}
+
 
 /**
  * item信息
@@ -143,8 +145,6 @@ export default class TableView extends cc.Component {
     _yCount: number = 0;
     // 当前处于显示状态的item
     _showItems: Map<number, cc.Node> = new Map<number, cc.Node>();
-    // 缓存的ScrollView组件偏移值
-    _cacheScrollOffset: cc.Vec2;
     // TableViewItem更新的参数
     _itemArgs: any;
     
@@ -160,7 +160,9 @@ export default class TableView extends cc.Component {
         this._scrollView = this.getComponent(cc.ScrollView);
         this._delegate = this.getComponent(TableViewDelegate);
 
-        // this._scrollView.scrollToOffset
+        this._scrollView.node.on("scrolling", function() {
+            this._updateView();
+        }, this);
     }
 
     protected onDestroy(): void {
@@ -189,7 +191,6 @@ export default class TableView extends cc.Component {
 
         this._itemArgs = datas;
         this._totalItemNum = this._delegate.numberOfItem();
-        this._cacheScrollOffset = null;
 
         this._margin.left = this.paddingLeft;
         this._margin.right = this.paddingRight;
@@ -222,8 +223,6 @@ export default class TableView extends cc.Component {
         
         // 更新item信息
         this._updateItemInfo();
-        // 界面刷新
-        // this._updateView();
 
         if(freeze) {
             offset.x = -offset.x;
@@ -244,6 +243,9 @@ export default class TableView extends cc.Component {
                     this._scrollView.scrollToBottomRight();
             }
         }
+
+        // 界面刷新
+        this._updateView();
     }
     
     /**
@@ -472,19 +474,11 @@ export default class TableView extends cc.Component {
         }
     }
     
-    update (dt) {
-        this._updateView();
-    }
-
     _updateView() {
+        if(this._itemInfos.length == 0)
+            return 0;
+
         let offset = this._scrollView.getScrollOffset();
-
-        // 偏移值没变化时不进入更新逻辑
-        if(this._cacheScrollOffset && this._cacheScrollOffset.equals(offset)) {
-            return;
-        }
-        this._cacheScrollOffset = offset;
-
         let offsetMax = this._scrollView.getMaxScrollOffset();
         // 视图大小
         let viewSize = this.node.getContentSize();
